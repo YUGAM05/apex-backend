@@ -97,13 +97,16 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
             const { sendWhatsAppBill } = await import('../services/whatsappService');
             if (shippingAddress && shippingAddress.phone) {
                 const customerName = req.user.name || shippingAddress.fullName;
+                
+                // Use Environment Variable for the Frontend URL instead of localhost
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
                 sendWhatsAppBill(
                     shippingAddress.phone,
                     customerName,
                     order._id.toString().slice(-8).toUpperCase(),
-                    totalAmount,
-                    `http://localhost:3000/order-success/${order._id}`
+                    calculatedTotal, // Use the calculated total for the bill
+                    `${frontendUrl}/order-success/${order._id}`
                 ).catch((err: any) => console.error('WhatsApp Automation Failed:', err));
             }
         } catch (waError) {
@@ -122,8 +125,6 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 };
 
 // @desc    Get user's orders
-// @route   GET /api/orders
-// @access  Private
 export const getUserOrders = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         if (!req.user) {
@@ -142,8 +143,6 @@ export const getUserOrders = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 // @desc    Get single order by ID
-// @route   GET /api/orders/:id
-// @access  Private
 export const getOrderById = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const order = await Order.findById(req.params.id)
@@ -163,7 +162,6 @@ export const getOrderById = async (req: AuthRequest, res: Response): Promise<voi
             return;
         }
 
-        // Check if user owns this order
         if (!req.user || order.user._id.toString() !== req.user._id.toString()) {
             res.status(403).json({ message: 'Not authorized to view this order' });
             return;
@@ -176,8 +174,6 @@ export const getOrderById = async (req: AuthRequest, res: Response): Promise<voi
 };
 
 // @desc    Update order status
-// @route   PUT /api/orders/:id/status
-// @access  Private/Admin/Seller
 export const updateOrderStatus = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
