@@ -20,6 +20,7 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // CORS - Allow multiple origins (frontend, admin, seller panels)
 const allowedOrigins = [
+    // Local development
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
@@ -30,8 +31,12 @@ const allowedOrigins = [
     'http://127.0.0.1:3002',
     'http://127.0.0.1:3003',
     'http://127.0.0.1:3004',
-    process.env.FRONTEND_URL || 'http://localhost:3004'
-];
+    // Production - set these in Vercel environment variables
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.ADMIN_URL || 'http://localhost:3001',
+    process.env.SELLER_URL || 'http://localhost:3002',
+    process.env.DELIVERY_URL || 'http://localhost:3003',
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -63,7 +68,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
