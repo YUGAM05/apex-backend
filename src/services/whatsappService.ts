@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // NOTE: To make this work with a real WhatsApp account, you need to:
-// 1. Sign up for Facebook Developers (Meta) or use a provider like Twilio
+// 1. Sign up for Facebook Developers (Meta) or use a professional WhatsApp API provider
 // 2. Get your Phone Number ID and Access Token
 // 3. Replace the placeholder values below in your .env file
 

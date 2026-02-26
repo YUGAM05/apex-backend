@@ -28,7 +28,6 @@ export interface IOrder extends Document {
     adminDeliveryCommission?: number;
     paymentMethod: string;
     paymentStatus: 'pending' | 'paid' | 'failed';
-    paymentOrderId?: string;        // ← ADDED: stores PhonePe transaction ID
     orderStatus: 'pending' | 'confirmed' | 'shipped' | 'out_for_pickup' | 'picked_up' | 'out_for_delivery' | 'delivered' | 'cancelled';
     assignedDelivery?: mongoose.Types.ObjectId;
     deliveryDistance?: number;
@@ -72,7 +71,6 @@ const OrderSchema: Schema = new Schema({
     adminDeliveryCommission: { type: Number },
     paymentMethod: { type: String, required: true, default: 'cod' },
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
-    paymentOrderId: { type: String },           // ← ADDED: stores PhonePe transaction ID
     orderStatus: { type: String, enum: ['pending', 'confirmed', 'shipped', 'out_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled'], default: 'pending' },
     assignedDelivery: { type: Schema.Types.ObjectId, ref: 'User' },
     deliveryDistance: { type: Number },
