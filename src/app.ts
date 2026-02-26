@@ -81,7 +81,6 @@ import sellerRoutes from './routes/sellerRoutes';
 import actionRoutes from './routes/deliveryRoutes';
 import deliveryRoutes from './routes/deliveryRoutes';
 import productRoutes from './routes/productRoutes';
-
 import notificationRoutes from './routes/notificationRoutes';
 import prescriptionRoutes from './routes/prescriptionRoutes';
 import hospitalRoutes from './routes/hospitalRoutes';
@@ -123,8 +122,11 @@ app.get('/', (req, res) => {
     });
 });
 
-// Database Connection (Placeholder)
-const connectDB = async () => {
+// Database Connection
+export const connectDB = async () => {
+    // Avoid reconnecting if already connected (important for Vercel serverless warm starts)
+    if (mongoose.connection.readyState >= 1) return;
+
     try {
         if (!process.env.MONGO_URI) {
             console.warn('MONGO_URI not found in env, skipping DB connect for now.');
@@ -136,7 +138,7 @@ const connectDB = async () => {
         console.error('MongoDB Connection Error:', error);
         process.exit(1);
     }
-}
+};
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -144,8 +146,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-// Start Server
-app.listen(PORT, async () => {
-    await connectDB();
-    console.log(`Server running on port ${PORT} - Payload Limit 50mb Active `);
-});
+// ─── Local Development Only ───────────────────────────────────────────────────
+// On Vercel, the app is exported as a serverless handler (see src/handler.ts).
+// app.listen() is intentionally NOT called in production/serverless environments.
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, async () => {
+        await connectDB();
+        console.log(`Server running on port ${PORT} - Payload Limit 50mb Active `);
+    });
+}
+
+// Export the app for Vercel serverless handler (src/handler.ts)
+export default app;
