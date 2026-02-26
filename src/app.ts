@@ -14,52 +14,29 @@ import passport from './config/passport';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Express middleware
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// CORS - Allow multiple origins (frontend, admin, seller panels)
-const allowedOrigins = [
-    // Local development
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003',
-    'http://localhost:3004',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    'http://127.0.0.1:3002',
-    'http://127.0.0.1:3003',
-    'http://127.0.0.1:3004',
-    // Production - set these in Vercel environment variables
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.ADMIN_URL || 'http://localhost:3001',
-    process.env.SELLER_URL || 'http://localhost:3002',
-    process.env.DELIVERY_URL || 'http://localhost:3003',
-].filter(Boolean);
+// Highly explicit CORS configuration to fix 500 OPTIONS preflight errors
+const corsOptions = {
+    origin: [
+        'https://apex-backend-theta.vercel.app',
+        'http://localhost:3001',
+        'https://apex-admin-panel.vercel.app'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+};
 
-app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, etc)
-        if (!origin) return callback(null, true);
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests for all routes
 
-        // Normalize origin by removing trailing slash for comparison
-        const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-
-        // Also normalize allowedOrigins just in case
-        const normalizedAllowedOrigins = allowedOrigins.map(o => o.endsWith('/') ? o.slice(0, -1) : o);
-
-        if (normalizedAllowedOrigins.indexOf(normalizedOrigin) !== -1) {
-            callback(null, true);
-        } else {
-            console.warn(`[CORS] Rejected origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-
-app.use(helmet());
 app.use(morgan('dev'));
 
 // Session middleware for Passport
@@ -154,11 +131,19 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // ─── Local Development Only ───────────────────────────────────────────────────
 // On Vercel, the app is exported as a serverless handler (see src/handler.ts).
 // app.listen() is intentionally NOT called in production/serverless environments.
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, async () => {
-        await connectDB();
-        console.log(`Server running on port ${PORT} - Payload Limit 50mb Active `);
-    });
+try {
+    if (process.env.NODE_ENV !== 'production') {
+        app.listen(PORT, async () => {
+            try {
+                await connectDB();
+                console.log(`Server running on port ${PORT} - Payload Limit 50mb Active `);
+            } catch (dbErr) {
+                console.error('Database connection failed during startup:', dbErr);
+            }
+        });
+    }
+} catch (startupErr) {
+    console.error('Fatal Server Initialization Error:', startupErr);
 }
 
 // Export the app for Vercel serverless handler (src/handler.ts)
