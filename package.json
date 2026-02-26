@@ -14,9 +14,9 @@
   "description": "",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@langchain/community": "^1.1.9",
-    "@langchain/core": "^1.1.17",
-    "@langchain/ollama": "^1.2.1",
+    "@langchain/community": "^0.3.40",
+    "@langchain/core": "^0.3.40",
+    "@langchain/ollama": "^0.1.5",
     "@types/multer": "^2.0.0",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
