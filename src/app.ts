@@ -39,11 +39,9 @@ const corsOptions: cors.CorsOptions = {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
     optionsSuccessStatus: 200,
-    preflightContinue: false,  // cors() handles OPTIONS automatically — no app.options() needed
+    preflightContinue: false,
 };
 
-// DO NOT add app.options() here — both '*' and '(.*)' crash Express 5
-// preflightContinue: false above makes cors() handle all preflight requests
 app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '100mb' }));
@@ -84,6 +82,16 @@ import blogRoutes from './routes/blogRoutes';
 import aiRoutes from './routes/aiRoutes';
 import couponRoutes from './routes/couponRoutes';
 
+// FIX: Ensure DB is connected before every request in serverless environment
+// Vercel functions can go cold — this reconnects automatically on each request
+app.use(async (req, res, next) => {
+    if (mongoose.connection.readyState === 0) {
+        console.log('[middleware] DB disconnected, reconnecting...');
+        await connectDB();
+    }
+    next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/blood-bank', bloodBankRoutes);
 app.use('/api/safety', safetyRoutes);
@@ -105,6 +113,7 @@ app.get('/', (req, res) => {
     res.status(200).json({
         message: 'Apex Care API is running',
         timestamp: new Date().toISOString(),
+        dbStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
         services: {
             aiSafetyChecker: 'Active',
             bloodBank: 'Active',
@@ -113,17 +122,24 @@ app.get('/', (req, res) => {
 });
 
 export const connectDB = async () => {
-    if (mongoose.connection.readyState >= 1) return;
+    if (mongoose.connection.readyState >= 1) {
+        console.log('[DB] Already connected, reusing connection');
+        return;
+    }
     try {
-        if (!process.env.MONGO_URI) {
-            console.warn('MONGO_URI not set — skipping DB connect.');
+        const uri = process.env.MONGO_URI;
+        console.log('[DB] MONGO_URI exists:', !!uri);
+        if (!uri) {
+            console.error('[DB] MONGO_URI is not set in environment variables!');
             return;
         }
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('MongoDB Connected!');
-    } catch (error) {
-        console.error('MongoDB Connection Error:', error);
-        process.exit(1);
+        console.log('[DB] Connecting to MongoDB...');
+        await mongoose.connect(uri);
+        console.log('[DB] MongoDB Connected successfully!');
+    } catch (error: any) {
+        // FIX: Removed process.exit(1) — crashing the process in serverless
+        // permanently kills the function until next cold start
+        console.error('[DB] MongoDB Connection Error:', error.message);
     }
 };
 
