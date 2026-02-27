@@ -39,12 +39,11 @@ const corsOptions: cors.CorsOptions = {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
     optionsSuccessStatus: 200,
+    preflightContinue: false,  // cors() handles OPTIONS automatically — no app.options() needed
 };
 
-// FIX: Express 5 requires '(.*)' instead of '*' for wildcard routes
-// The old '*' syntax crashes the server with PathError on startup
-app.options('(.*)', cors(corsOptions));
-
+// DO NOT add app.options() here — both '*' and '(.*)' crash Express 5
+// preflightContinue: false above makes cors() handle all preflight requests
 app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '100mb' }));
