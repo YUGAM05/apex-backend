@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -13,30 +12,21 @@ import passport from './config/passport';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 1: CORS — Added ALL 5 panel URLs (user, admin, seller, delivery + localhost)
-// Previously only apex-admin-panel and localhost:3001 were listed.
-// Any panel not in this list gets a CORS block = 500 on OPTIONS preflight.
-// ─────────────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-    // Production — Vercel panel URLs (replace with your actual deployed URLs)
     'https://apex-admin-panel.vercel.app',
     'https://apex-user-panel.vercel.app',
     'https://apex-seller-panel.vercel.app',
     'https://apex-delivery-panel.vercel.app',
     'https://apex-backend-theta.vercel.app',
-
-    // Local development
-    'http://localhost:3000',  // user panel
-    'http://localhost:3001',  // admin panel
-    'http://localhost:3002',  // delivery panel
-    'http://localhost:3003',  // seller panel
-    'http://localhost:5000',  // backend itself
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'http://localhost:5000',
 ];
 
 const corsOptions: cors.CorsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
@@ -51,16 +41,12 @@ const corsOptions: cors.CorsOptions = {
     optionsSuccessStatus: 200,
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 2: app.options MUST come BEFORE app.use(cors()) and ALL other middleware
-// Previously it was after — preflight was hitting helmet/session before CORS
-// headers were set, causing the 500 on OPTIONS requests.
-// ─────────────────────────────────────────────────────────────────────────────
-app.options('*', cors(corsOptions)); // Handle ALL preflight requests first
+// FIX: Express 5 requires '(.*)' instead of '*' for wildcard routes
+// The old '*' syntax crashes the server with PathError on startup
+app.options('(.*)', cors(corsOptions));
 
 app.use(cors(corsOptions));
 
-// Body parsers
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
@@ -69,7 +55,6 @@ app.use(helmet({
 }));
 app.use(morgan('dev'));
 
-// Session middleware for Passport
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback_secret',
     resave: false,
@@ -80,15 +65,9 @@ app.use(session({
     },
 }));
 
-// Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 3: Removed duplicate import of deliveryRoutes
-// 'actionRoutes' and 'deliveryRoutes' were both importing the same file.
-// This caused the module to be loaded twice — wasteful and can cause issues.
-// ─────────────────────────────────────────────────────────────────────────────
 import authRoutes from './routes/authRoutes';
 import bloodBankRoutes from './routes/bloodBankRoutes';
 import safetyRoutes from './routes/safetyRoutes';
@@ -123,14 +102,6 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/coupons', couponRoutes);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX 4: Removed static uploads serving via express.static
-// Vercel serverless has NO persistent disk — this silently fails and can
-// cause middleware errors. Use Cloudinary/S3 for file storage instead.
-// ─────────────────────────────────────────────────────────────────────────────
-// REMOVED: app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-// Health Check
 app.get('/', (req, res) => {
     res.status(200).json({
         message: 'Apex Care API is running',
@@ -142,10 +113,8 @@ app.get('/', (req, res) => {
     });
 });
 
-// Database Connection
 export const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
-
     try {
         if (!process.env.MONGO_URI) {
             console.warn('MONGO_URI not set — skipping DB connect.');
@@ -159,7 +128,6 @@ export const connectDB = async () => {
     }
 };
 
-// Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[GlobalError]', err.message);
     res.status(err.status || 500).json({
@@ -167,7 +135,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
-// Local development only — Vercel uses handler.ts export, not app.listen()
 if (process.env.NODE_ENV !== 'production') {
     (async () => {
         try {
